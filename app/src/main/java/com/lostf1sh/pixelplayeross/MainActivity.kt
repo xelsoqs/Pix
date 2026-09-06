@@ -161,7 +161,6 @@ class MainActivity : ComponentActivity() {
     private val playerViewModel: PlayerViewModel by viewModels()
     private val mainViewModel: MainViewModel by viewModels()
     private var isUIVisiblyReady = false
-    private var mediaControllerFuture: ListenableFuture<MediaController>? = null
     @Inject
     lateinit var userPreferencesRepository: UserPreferencesRepository // Inject here
     @Inject
@@ -929,19 +928,11 @@ class MainActivity : ComponentActivity() {
         if (intent.getBooleanExtra("is_benchmark", false)) {
             // Benchmark mode no longer loads dummy data - uses real library data instead
         }
-
-        val sessionToken = SessionToken(this, ComponentName(this, MusicService::class.java))
-        mediaControllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        mediaControllerFuture?.addListener({
-        }, MoreExecutors.directExecutor())
     }
 
     override fun onStop() {
         super.onStop()
         LogUtils.d(this, "onStop")
-        mediaControllerFuture?.let {
-            MediaController.releaseFuture(it)
-        }
     }
 
     override fun onResume() {

@@ -2035,12 +2035,17 @@ class PlayerViewModel @Inject constructor(
         try {
             viewModelScope.launch {
                 _isInitialThemePreloadComplete.value = false
-                if (isSyncingStateFlow.value && !_isInitialDataLoaded.value) {
-                    // Sync is active - defer to sync completion handler
-                } else if (!_isInitialDataLoaded.value && libraryStateHolder.allSongs.value.isEmpty()) {
-                    resetAndLoadInitialData("preloadThemesAndInitialData")
+                try {
+                    if (isSyncingStateFlow.value && !_isInitialDataLoaded.value) {
+                        // Sync is active - defer to sync completion handler
+                    } else if (!_isInitialDataLoaded.value && libraryStateHolder.allSongs.value.isEmpty()) {
+                        resetAndLoadInitialData("preloadThemesAndInitialData")
+                    }
+                } catch (e: Exception) {
+                    Timber.tag("PlayerViewModel").e(e, "preloadThemesAndInitialData failed")
+                } finally {
+                    _isInitialThemePreloadComplete.value = true
                 }
-                _isInitialThemePreloadComplete.value = true
             }
         } finally {
             Trace.endSection()
@@ -2060,6 +2065,8 @@ class PlayerViewModel @Inject constructor(
             Timber.tag("PlayerViewModel").d("resetAndLoadInitialData called by $caller")
             loadInitialLibraryDataParallel()
             updateDailyMix()
+        } catch (e: Exception) {
+            Timber.tag("PlayerViewModel").e(e, "resetAndLoadInitialData failed (caller=$caller)")
         } finally {
             Trace.endSection()
         }
@@ -2801,9 +2808,13 @@ class PlayerViewModel @Inject constructor(
                 }
                 syncPlaybackPositionFromPlayer(mediaItem.mediaId, initialPosition)
                 viewModelScope.launch {
-                    val uri = song.albumArtUriString?.toUri()
-                    val currentUri = playbackStateHolder.stablePlayerState.value.currentSong?.albumArtUriString
-                    themeStateHolder.extractAndGenerateColorScheme(uri, currentUri)
+                    try {
+                        val uri = song.albumArtUriString?.toUri()
+                        val currentUri = playbackStateHolder.stablePlayerState.value.currentSong?.albumArtUriString
+                        themeStateHolder.extractAndGenerateColorScheme(uri, currentUri)
+                    } catch (e: Exception) {
+                        Timber.tag("PlayerViewModel").e(e, "Failed to extract color scheme on controller connect")
+                    }
                 }
                 loadLyricsForCurrentSong()
                 if (playerCtrl.isPlaying) {
@@ -2933,9 +2944,13 @@ class PlayerViewModel @Inject constructor(
 
                         song?.let { currentSongValue ->
                             launch {
-                                val uri = currentSongValue.albumArtUriString?.toUri()
-                                val currentUri = playbackStateHolder.stablePlayerState.value.currentSong?.albumArtUriString
-                                themeStateHolder.extractAndGenerateColorScheme(uri, currentUri)
+                                try {
+                                    val uri = currentSongValue.albumArtUriString?.toUri()
+                                    val currentUri = playbackStateHolder.stablePlayerState.value.currentSong?.albumArtUriString
+                                    themeStateHolder.extractAndGenerateColorScheme(uri, currentUri)
+                                } catch (e: Exception) {
+                                    Timber.tag("PlayerViewModel").e(e, "Failed to extract color scheme on media item transition")
+                                }
                             }
                             loadLyricsForCurrentSong()
                         }
